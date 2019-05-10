@@ -82,6 +82,14 @@ class ApiV1
         return json(['status' => 1, 'msg' => 'login success,welcome use DorpScan v' . env('APP_VERSION') . ' programs', 'lid' => $insertResult, 'ip' => $clientIp]);
     }
 
+    /**
+     * @return \think\response\Json
+     * @throws \think\Exception
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     * @throws \think\exception\PDOException
+     */
     public function postHeartbeat()
     {
         $lid    = input('post.lid/d');
@@ -105,4 +113,56 @@ class ApiV1
         return json(['status' => 1, 'taskInfo' => $selectResult[0]['taskInfo'], 'remoteStatus' => $selectResult[0]['remoteStatus']]);
     }
 
+    /**
+     * 提交任务信息
+     * @return \think\response\Json
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function postTaskMessage()
+    {
+        $taskID = input('post.taskID/d');
+        $token  = input('post.token/s');
+
+        $target = input('post.target/s');
+        //目标url 或者
+        $title   = input('post.title/s');
+        $message = input('post.message/s');
+        $level   = input('post.level/d');
+
+        if (empty($taskID) || empty($token) || empty($target) || empty($title) || empty($message) || empty($level))
+            return json(['status' => 0, 'msg' => 'param fail']);
+        //check param
+        if (strlen($token) != 32)
+            return json(['status' => 0, 'msg' => 'token fail']);
+        //check token
+        if ($level <= 0 || $level > 3)
+            return json(['status' => 0, 'msg' => 'message level fail']);
+        //check level
+        if (strlen($title) > 255)
+            return json(['status' => 0, 'msg' => 'title length too long']);
+        if (strlen($target) > 255)
+            return json(['status' => 0, 'msg' => 'target length too long']);
+        $selectTaskData = Db::name('task_list')->where('id', $taskID)->field('token,status')->limit(1)->select();
+        if (empty($selectTaskData))
+            return json(['status' => 0, 'msg' => 'task id fail or token fail']);
+        if ($selectTaskData[0]['status'])
+            return json(['status' => 0, 'msg' => 'task is done']);
+        if ($selectTaskData[0]['token'] != $token)
+            return json(['status' => 0, 'msg' => 'task id fail or token fail']);
+
+        $insertResult = Db::name('result_temp')->insertGetId([
+            'taskID'     => $taskID,
+            'target'     => $target,
+            'title'      => $title,
+            'message'    => $message,
+            'level'      => $level,
+            'createTime' => getDateTime()
+        ]);
+        if (!$insertResult)
+            return json(['status' => -1, 'msg' => 'insert data fail pls again']);
+
+        return json(['status' => 1]);
+    }
 }
