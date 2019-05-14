@@ -18,16 +18,15 @@ class Test extends Command
 
     protected function execute(Input $input, Output $output)
     {
-        $filePath     = __DIR__ . '/../../public/static/py/resources/Feature.json';
-        $selectResult = Db::name('fingerprint_service')->field('name,type,url,content')->select();
-        file_put_contents($filePath, json_encode($selectResult));
+        $this->buildFingerprintService();
         // 指令输出
     }
 
     private function buildFingerprintService()
     {
         $filePath     = __DIR__ . '/../../public/static/py/resources/Feature.json';
-        $selectResult = Db::name('fingerprint_service')->field('name,type,url,content')->where('status', 1)->select();
+        $selectResult = Db::query('SELECT * FROM `scan`.`scan_fingerprint_service` WHERE `name` LIKE \'%ord%\' ORDER BY `name`  LIMIT 0,1000');
+//        $selectResult = Db::name('fingerprint_service')->field('name,type,url,content')->where('status', 1)->select();
         file_put_contents($filePath, json_encode($selectResult));
     }
 

@@ -2,6 +2,44 @@ import imp
 import sys
 import urllib.request
 
+
+# def preload_module(chunk, modulename):
+#     m = imp.new_module(modulename)
+#     exec(chunk, m.__dict__)
+#     sys.modules[modulename] = m
+#     globals()[modulename] = m
+#     return m
+#
+#
+# data = open('./test.py', mode='rb').read()
+# data = compile(data, 'tootls', 'exec')
+# data = marshal.dumps(data)
+# data = zlib.compress(data, 9)
+# f = open('./test.py', 'wb')
+# f.write(data)
+# f.flush()
+# f.close()
+# preload_module(marshal.loads(zlib.decompress(data)), 'test')
+# print(test.generate_random_str(6))
+# print(data)
+
+# from lxml import etree
+#
+# text='''
+# <div>
+#     <ul>
+#          <li class="item-0"><a href="link1.html">第一个</a></li>
+#          <li class="item-1"><a href="link2.html">second item</a></li>
+#          <li class="item-0"><a href="link5.html">a属性</a>
+#      </ul>
+#  </div>
+# '''
+# html=etree.HTML(text) #初始化生成一个XPath解析对象
+# result=etree.tostring(html,encoding='utf-8')   #解析对象输出代码
+# print(type(html))
+# print(type(result))
+# print(result.decode('utf-8'))
+
 def load_module(model_name, url):
     u = urllib.request.urlopen(url)
     source = u.read().decode('utf-8')
@@ -29,6 +67,7 @@ common.load_module = load_module
 common.HackRequests = HackRequests
 common.nmap = nmap
 common.scanService = scanService
+common.scanService.tootls = tootls
 common.tootls = tootls
 
 login_result = common.login_server(API_GATEWAY, USER_UID, USER_HASH)

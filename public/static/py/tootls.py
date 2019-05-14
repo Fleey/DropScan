@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 import platform
 import random
@@ -35,6 +36,60 @@ def curl(url, data, headers, type='GET'):
     except error.URLError as e:
         result = '[' + str(e.code) + '] ' + e.reason
     return result
+
+
+def curl2(url=None, request_data=None, headers=None, request_type=None, proxy=None, timeout=3):
+    if url is None:
+        return [500, [], '', 500, 'url is empty']
+    if request_type is None:
+        request_type = 'get'
+    else:
+        request_type = request_type.lower()
+
+    if (request_type == 'get' or request_type == 'post') and type(request_data) == dict:
+        request_data = parse.urlencode(request_data, encoding='utf-8')
+        if request_type == 'get':
+            url += '?' + request_data
+    if request_type != 'get':
+        if request_type == 'json':
+            headers['Content-Type'] = 'application/json; charset=utf-8'
+            if request_data is None:
+                request_data = '{}'
+            if type(request_data) == dict or type(request_data) == list:
+                request_data = json.dumps(request_data)
+        if request_type is 'xml':
+            headers['Content-Type'] = 'text/xml; charset=utf-8'
+        headers['Content-Length'] = len(request_data)
+    # 组合参数
+    if headers is None:
+        headers = {}
+    proxy_handler = request.ProxyHandler({})
+    if proxy is not None:
+        proxy_handler = proxy
+    # 设置代理头
+    opener = request.build_opener(proxy_handler)
+    if request_type != 'get':
+        response = request.Request(url, headers=headers, data=request_data.encode('utf-8'))
+    else:
+        response = request.Request(url, headers=headers)
+    temp_data = []
+    try:
+        response = opener.open(response, timeout=timeout)
+        temp_data.append(response.code)
+        temp_data.append(response.getheaders())
+        response = response.read().decode('utf-8')
+        temp_data.append(response)
+        temp_data.append(0)
+        temp_data.append('ok')
+        return temp_data
+    except error.HTTPError as e:
+        return [500, [], '', e.code, e.msg]
+    except error.URLError as e:
+        return [500, [], '', 500, str(e)]
+    except WindowsError as e:
+        return [500, [], '', 500, str(e)]
+    except:
+        return [500, [], '', 500, '反正就是异常了']
 
 
 # 获取本机MAC

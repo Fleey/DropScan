@@ -20,7 +20,7 @@ class scanService:
 
     def scan_domain(self):
         self.__scan_domain()
-        return self.__get_filter_data()
+        return self.__get_scan_data()
 
     def __scan_domain(self):
         for data in self.__service_fingerprint_dict:
@@ -70,6 +70,7 @@ class scanService:
                 return [False, False, False, False]
         try:
             temp_response = request.Request(url, headers=self.__head)
+
             response = request.urlopen(temp_response, timeout=self.__timeout)
             headers = response.getheaders()
             data = response.read()
@@ -93,6 +94,15 @@ class scanService:
             }
             return [False, False, False, False]
 
+    # 获取一坨可能的系统指纹
+    def __get_scan_data(self):
+        temp_data = []
+        for str1 in self.__success_record:
+            value = self.__success_record[str1]
+            temp_data.append(value['name'])
+        return temp_data
+
+    # 获取最可能的那个系统 容错率比较低
     def __get_filter_data(self):
         temp_data = {
             "name": "未知系统",

@@ -1,9 +1,5 @@
 import json
-import sys
 import threading
-import time
-import urllib
-from urllib import request
 
 import threadpool
 
@@ -21,6 +17,8 @@ def banner():
     Coded By Fleey (V1.0 RELEASE) email:fleey2013@live.cn
         """)
 
+
+# print(load_module)
 
 def login_server(server_address, uid, hash):
     banner()
@@ -55,6 +53,7 @@ def get_target_service(target, user_agent='', cookie=''):
     print('[+] load service fingerprint ok !')
 
     print('[+] start service fingerprint target => ' + target)
+
     scan_service = scanService.scanService(target, service_fingerprint_dict, user_agent=user_agent, cookie=cookie)
     result = scan_service.scan_domain()
     print('[+] end service fingerprint target => ' + target)
@@ -80,6 +79,7 @@ class heart_beat_threading(threading.Thread):
     __lid = None
     __mac = None
     __server_gateway = None
+    __service_fingerprint_dict = []
 
     def __init__(self, server_address, lid):
         threading.Thread.__init__(self)
@@ -93,11 +93,19 @@ class heart_beat_threading(threading.Thread):
             'runThread': 0,
         }
         # while True:
-        threader = scan_main_threading('http://www.laruence.com/', 1, {
-            'lid': self.__lid,
-            'mac': self.__mac,
-            'tid': 1
-        }, 'none', 'DropScan v1.0.0')
+        target = 'http://43.248.187.89:8000'
+        ua = 'DropScan v1.0.0'
+        cookie = 'none'
+
+        threader = scan_main_threading(
+            self.__server_gateway,
+            target,
+            1,
+            {
+                'token': 'hk585KIHvEwFtvRkvMN8uDsYgKeJIdev',
+                'tid': 2
+            }, get_target_service(target),
+            ua, cookie)
         threader.start()
 
         # threader.run()
@@ -133,10 +141,16 @@ class scan_main_threading(threading.Thread):
     __user_agent = ''
     __cookie = ''
     __targets_data = []
-
+    __server_gateway = ''
     __scan_data = {}
 
-    def __init__(self, target_url, thread_num, scan_data, service_name='', user_agent='', cookie='test'):
+    # threader = scan_main_threading(self.__server_gateway, 'http://www.laruence.com/', 1, {
+    #     'lid': self.__lid,
+    #     'token': self.__mac,
+    #     'tid': 1
+    # }, 'none', 'DropScan v1.0.0')
+    def __init__(self, server_gateway, target_url, thread_num, scan_data, service_list=[], user_agent='',
+                 cookie='test'):
         threading.Thread.__init__(self)
 
         self.is_suspend = False
@@ -146,9 +160,10 @@ class scan_main_threading(threading.Thread):
         self.user_agent = user_agent
         self.__cookie = cookie
         self.__targets_data.append({
-            'service_name': service_name,
+            'service_list': service_list,
             'target_url': target_url
         })
+        self.__server_gateway = server_gateway
         self.__scan_data = scan_data
 
         self.__run_done_plugins_id = []
@@ -191,16 +206,29 @@ class scan_main_threading(threading.Thread):
     def send_scan_result(self, title, message, level):
         if level <= 0 or level > 3:
             return [False, 'message level error']
-        print(self.__scan_data)
-        print(message)
-        print(title)
-        print(level)
+        request_path = self.__server_gateway + '/api/v1/TaskMessage'
+        # build request path
+        request_result = tootls.curl(request_path, {
+            'taskID': self.__scan_data['tid'],
+            'token': self.__scan_data['token'],
+            'target': self.__targets_data[0]['target_url'],
+            'title': title,
+            'message': message,
+            'level': level
+        }, {}, 'POST')
+        try:
+            json_data_temp = json.loads(request_result)
+        except:
+            return
+        if json_data_temp['status'] == 1:
+            return [True, '']
+        else:
+            return [False, json_data_temp['msg']]
 
-    def task_push(self, service_name, target_url):
-        print(service_name)
-        print(target_url)
+    # 推送任务
+    def task_push(self, service_list, target_url):
         self.__targets_data.append({
-            'service_name': service_name,
+            'service_list': service_list,
             'target_url': target_url
         })
 
@@ -208,12 +236,15 @@ class scan_main_threading(threading.Thread):
         data['code'].send_scan_result = self.send_scan_result
         data['code'].task_push = self.task_push
         data['code'].tootls = tootls
-        if data['code'].assign(self.__targets_data[0]['service_name']):
-            data['code'].audit(
-                self.__targets_data[0],
-                self.__user_agent,
-                self.__cookie
-            )
+        try:
+            if data['code'].assign(self.__targets_data[0]['service_list']):
+                data['code'].audit(
+                    self.__targets_data[0]['target_url'],
+                    self.__user_agent,
+                    self.__cookie
+                )
+        except:
+            pass
         # 这里写入服务名 进行判断是否需要下一步操作 避免不必要的扫描过程
 
         # 砍掉了暂停功能只留停止功能
