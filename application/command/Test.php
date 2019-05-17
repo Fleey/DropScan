@@ -18,8 +18,15 @@ class Test extends Command
 
     protected function execute(Input $input, Output $output)
     {
-        $this->buildFingerprintService();
+        $this->clearOverdueMachine();
+//        $this->buildFingerprintService();
         // 指令输出
+    }
+
+    private function clearOverdueMachine()
+    {
+        Db::name('machine_list')->whereTime('updateTime', '<=', '-3 min')->select();
+        //定期删除过期机器 解决单机器多任务问题
     }
 
     private function buildFingerprintService()

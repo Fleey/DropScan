@@ -2,7 +2,6 @@ import imp
 import sys
 import urllib.request
 
-
 # def preload_module(chunk, modulename):
 #     m = imp.new_module(modulename)
 #     exec(chunk, m.__dict__)
@@ -40,6 +39,11 @@ import urllib.request
 # print(type(result))
 # print(result.decode('utf-8'))
 
+if sys.version_info < (3, 6):
+    print('[+] must use python < 3.6')
+    exit(500)
+
+
 def load_module(model_name, url):
     u = urllib.request.urlopen(url)
     source = u.read().decode('utf-8')
@@ -67,19 +71,21 @@ common.load_module = load_module
 common.HackRequests = HackRequests
 common.nmap = nmap
 common.scanService = scanService
-common.scanService.tootls = tootls
 common.tootls = tootls
 
 login_result = common.login_server(API_GATEWAY, USER_UID, USER_HASH)
 print('[+] Waiting for the assignment......')
 
 USER_LID = login_result['lid']
+UUID = login_result['uuid']
 
-heart_beat_thread = common.heart_beat_threading(API_GATEWAY, USER_LID)
+heart_beat_thread = common.heart_beat_threading(API_GATEWAY, USER_LID, UUID)
 heart_beat_thread.start()
 
+# from lib import nmap
+#
 # nm = nmap.PortScanner()
-# nm.scan(hosts='127.0.0.1', arguments="-T4 -F")
+# nm.scan(hosts='43.248.187.89', arguments="-T4 -F")
 #
 # for host in nm.all_hosts():
 #     print('存在下列域名：')
@@ -89,9 +95,9 @@ heart_beat_thread.start()
 #     print('域名开放下列端口：')
 #     for port in nm[host]['tcp']:
 #         port_info = nm[host]['tcp'][port]
-#         print('port:' + str(port) + ' name:' + port_info['name'] + '  ' + port_info['product'] + ' ' +
-#               port_info['version'])
-
+#         if port_info['state'] != 'closed':
+#             print('port:' + str(port) + ' name:' + port_info['name'] + '  ' + port_info['product'] + ' ' +
+#                   port_info['version'])
 
 # print(common.get_mac_address())
 # print(233)

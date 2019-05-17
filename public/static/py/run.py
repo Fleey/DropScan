@@ -2,6 +2,10 @@ import imp
 import sys
 import urllib.request
 
+if sys.version_info < (3, 6):
+    print('[+] must use python < 3.6')
+    exit(500)
+
 def load_module(model_name, url):
     u = urllib.request.urlopen(url)
     source = u.read().decode('utf-8')
@@ -16,8 +20,8 @@ def load_module(model_name, url):
 
 
 API_GATEWAY = 'http://scan.cn'
-USER_UID = {$USER_UID}
-USER_HASH = '{$USER_HASH}'
+USER_UID = 1
+USER_HASH = '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08'
 
 load_module('common', 'http://scan.cn/static/py/common.py')
 load_module('HackRequests', 'http://scan.cn/static/py/lib/HackRequest.py')
@@ -35,6 +39,7 @@ login_result = common.login_server(API_GATEWAY, USER_UID, USER_HASH)
 print('[+] Waiting for the assignment......')
 
 USER_LID = login_result['lid']
+UUID = login_result['uuid']
 
-heart_beat_thread = common.heart_beat_threading(API_GATEWAY, USER_LID)
+heart_beat_thread = common.heart_beat_threading(API_GATEWAY, USER_LID, UUID)
 heart_beat_thread.start()

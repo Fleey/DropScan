@@ -53,33 +53,32 @@ class ApiV1
         $selectResult = Db::name('machine_list')->where([
             'mac' => $mac,
             'lid' => $linkID
-        ])->limit(1)->field('id')->select();
+        ])->limit(5)->field('id')->select();
 
         $clientIp = getClientIP();
         //get client ip
-        if (!empty($selectResult)) {
-            Db::name('machine_list')->where([
-                'id' => $selectResult[0]['id']
-            ])->limit(1)->update([
-                'clientIP'      => $clientIp,
-                'updateTime'    => getDateTime(),
-                'machineStatus' => 1,
-                'machineInfo'   => $machineInfo
-            ]);
-            return json(['status' => 1, 'msg' => 'login success,welcome use DorpScan v' . env('APP_VERSION') . ' programs', 'lid' => $selectResult[0]['id'], 'ip' => $clientIp]);
-            //机器记录已经存在则更新信息
-        }
+        if (count($selectResult) >= 5)
+            return json(['status' => 0, 'msg' => 'Just a moment, please,You have reached the maximum limit.']);
 
+        $uuid         = uniqid();
         $insertResult = Db::name('machine_list')->insertGetId([
-            'lid'         => $linkID,
-            'clientIP'    => $clientIp,
-            'mac'         => $mac,
-            'machineInfo' => $machineInfo,
-            'status'      => 1,
-            'updateTime'  => getDateTime()
+            'uuid'          => $uuid,
+            'lid'           => $linkID,
+            'clientIP'      => $clientIp,
+            'mac'           => $mac,
+            'machineInfo'   => $machineInfo,
+            'machineStatus' => 0,
+            'remoteStatus'  => 1,
+            'updateTime'    => getDateTime()
         ]);
 
-        return json(['status' => 1, 'msg' => 'login success,welcome use DorpScan v' . env('APP_VERSION') . ' programs', 'lid' => $insertResult, 'ip' => $clientIp]);
+        return json([
+            'status' => 1,
+            'msg'    => 'login success,welcome use DorpScan v' . env('APP_VERSION') . ' programs',
+            'lid'    => $insertResult,
+            'ip'     => $clientIp,
+            'uuid'   => $uuid
+        ]);
     }
 
     /**
@@ -94,18 +93,23 @@ class ApiV1
     {
         $lid    = input('post.lid/d');
         $mac    = input('post.mac/s');
+        $uuid   = input('post.uuid/s');
         $status = input('post.status/d', 0);
 
         if (empty($lid))
             return json(['status' => 0, 'msg' => 'lid is empty']);
         if (strlen($mac) != 17)
             return json(['status' => 0, 'msg' => 'mac fail']);
+        if (strlen($uuid) != 13)
+            return json(['status' => 0, 'msg' => 'uuid fail']);
 
-        $selectResult = Db::name('machine_list')->where('id', $lid)->limit(1)->field('mac,taskInfo,remoteStatus')->select();
+        $selectResult = Db::name('machine_list')->where('id', $lid)->limit(1)->field('mac,uuid,taskInfo,remoteStatus')->select();
         if (empty($selectResult))
-            return json(['status' => 0, 'msg' => 'lid or mac fail']);
+            return json(['status' => 0, 'msg' => 'lid or mac or uuid fail']);
         if ($selectResult[0]['mac'] != $mac)
-            return json(['status' => 0, 'msg' => 'lid or mac fail']);
+            return json(['status' => 0, 'msg' => 'lid or mac or uuid fail']);
+        if ($selectResult[0]['uuid'] != $uuid)
+            return json(['status' => 0, 'msg' => 'lid or mac or uuid fail']);
         Db::name('machine_list')->where('id', $lid)->limit(1)->update([
             'machineStatus' => $status,
             'updateTime'    => getDateTime()
@@ -131,13 +135,13 @@ class ApiV1
         $message = input('post.message/s');
         $level   = input('post.level/d');
 
-        if (empty($taskID) || empty($token) || empty($target) || empty($title) || empty($message) || empty($level))
+        if (empty($taskID) || empty($token) || empty($target) || empty($title) || empty($message))
             return json(['status' => 0, 'msg' => 'param fail']);
         //check param
         if (strlen($token) != 32)
             return json(['status' => 0, 'msg' => 'token fail']);
         //check token
-        if ($level <= 0 || $level > 3)
+        if ($level < 0 || $level > 3)
             return json(['status' => 0, 'msg' => 'message level fail']);
         //check level
         if (strlen($title) > 255)
