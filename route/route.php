@@ -13,7 +13,7 @@ Route::get('run/:id/:hash', 'api/ApiV1/getRun')->pattern([
     'hash' => '[a-zA-Z0-9]{64}']);
 
 Route::group('api', function () {
-    Route::controller('v1', 'api/ApiV1');
+    Route::controller('v1', 'api/ScanApiV1');
 });
 
 Route::rule('test', function () {
