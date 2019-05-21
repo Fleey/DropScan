@@ -60,25 +60,42 @@ class ApiV1
         if (count($selectResult) >= 5)
             return json(['status' => 0, 'msg' => 'Just a moment, please,You have reached the maximum limit.']);
 
-        $uuid         = uniqid();
-        $insertResult = Db::name('machine_list')->insertGetId([
+        $uuid = uniqid();
+        Db::name('machine_list')->insertGetId([
             'uuid'          => $uuid,
             'lid'           => $linkID,
             'clientIP'      => $clientIp,
             'mac'           => $mac,
             'machineInfo'   => $machineInfo,
             'machineStatus' => 0,
-            'remoteStatus'  => 1,
             'updateTime'    => getDateTime()
         ]);
 
         return json([
             'status' => 1,
             'msg'    => 'login success,welcome use DorpScan v' . env('APP_VERSION') . ' programs',
-            'lid'    => $insertResult,
+            'lid'    => $linkID,
             'ip'     => $clientIp,
             'uuid'   => $uuid
         ]);
+    }
+
+    public function postLogout()
+    {
+        $lid  = input('post.lid/d');
+        $mac  = input('post.mac/s');
+        $uuid = input('post.uuid/s');
+
+        if (!$this->verifyMachineData($lid, $mac, $uuid))
+            return json(['status' => 0, 'msg' => 'lid or mac or uuid fail']);
+
+        Db::name('machine_list')->where([
+            'lid'  => $lid,
+            'uuid' => ':uuid'
+        ])->bind([
+            'uuid' => $uuid
+        ])->limit(1)->delete();
+        return json(['status' => 1, 'msg' => 'exit login success']);
     }
 
     /**
@@ -96,25 +113,29 @@ class ApiV1
         $uuid   = input('post.uuid/s');
         $status = input('post.status/d', 0);
 
-        if (empty($lid))
-            return json(['status' => 0, 'msg' => 'lid is empty']);
-        if (strlen($mac) != 17)
-            return json(['status' => 0, 'msg' => 'mac fail']);
-        if (strlen($uuid) != 13)
-            return json(['status' => 0, 'msg' => 'uuid fail']);
+        if (!$this->verifyMachineData($lid, $mac, $uuid))
+            return json(['status' => 0, 'msg' => 'lid or mac or uuid fail']);
 
-        $selectResult = Db::name('machine_list')->where('id', $lid)->limit(1)->field('mac,uuid,taskInfo,remoteStatus')->select();
-        if (empty($selectResult))
-            return json(['status' => 0, 'msg' => 'lid or mac or uuid fail']);
-        if ($selectResult[0]['mac'] != $mac)
-            return json(['status' => 0, 'msg' => 'lid or mac or uuid fail']);
-        if ($selectResult[0]['uuid'] != $uuid)
-            return json(['status' => 0, 'msg' => 'lid or mac or uuid fail']);
-        Db::name('machine_list')->where('id', $lid)->limit(1)->update([
+        $selectResult = Db::name('machine_list')->where([
+            'lid'  => $lid,
+            'uuid' => ':uuid'
+        ])->bind([
+            'uuid' => $uuid
+        ])->limit(1)->field('mac,uuid,taskList')->select();
+
+        Db::name('machine_list')->where([
+            'lid'  => $lid,
+            'uuid' => ':uuid'
+        ])->bind([
+            'uuid' => $uuid
+        ])->limit(1)->update([
             'machineStatus' => $status,
             'updateTime'    => getDateTime()
         ]);
-        return json(['status' => 1, 'taskInfo' => $selectResult[0]['taskInfo'], 'remoteStatus' => $selectResult[0]['remoteStatus']]);
+
+        $taskList = unserialize($selectResult[0]['taskList']);
+
+        return json(['status' => 1, 'taskList' => empty($taskList) ? [] : $taskList]);
     }
 
     /**
@@ -168,5 +189,164 @@ class ApiV1
             return json(['status' => -1, 'msg' => 'insert data fail pls again']);
 
         return json(['status' => 1]);
+    }
+
+    /**
+     * @return \think\response\Json
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function getTaskInfo()
+    {
+        $lid  = input('get.lid/d');
+        $mac  = input('get.mac/s');
+        $uuid = input('get.uuid/s');
+
+        $taskID = input('get.taskID/d');
+
+        if (empty($taskID))
+            return json(['status' => 0, 'msg' => 'task id fail']);
+        if (!$this->verifyMachineData($lid, $mac, $uuid))
+            return json(['status' => 0, 'msg' => 'lid or mac or uuid fail']);
+
+        $selectResult = Db::name('task_list')->where([
+            'lid' => $lid,
+            'id'  => $taskID
+        ])->limit(1)->field('scanData')->select();
+
+        $selectResult = json_decode($selectResult[0]['scanData']);
+
+        return json(['status' => 1, 'data' => $selectResult]);
+    }
+
+    /**
+     * @return \think\response\Json
+     * @throws \think\Exception
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     * @throws \think\exception\PDOException
+     */
+    public function postTaskStatus()
+    {
+        $lid  = input('post.lid/d');
+        $mac  = input('post.mac/s');
+        $uuid = input('post.uuid/s');
+
+        $taskID     = input('post.taskID/s');
+        $taskStatus = input('post.taskStatus/d');
+
+        $whiteList = [1, 2];
+
+        if (empty($taskID) || empty($taskStatus))
+            return json(['status' => 0, 'msg' => 'task id fail or task status fail']);
+        if (!in_array($taskStatus, $whiteList))
+            return json(['status' => 0, 'msg' => 'task status fail']);
+        if (!$this->verifyMachineData($lid, $mac, $uuid))
+            return json(['status' => 0, 'msg' => 'lid or mac or uuid fail']);
+
+        $selectResult = Db::name('task_list')->where([
+            'lid' => $lid,
+            'id'  => $taskID
+        ])->limit(1)->field('status')->select();
+
+        if (empty($selectResult))
+            return json(['status' => 0, 'msg' => 'server api exception']);
+
+        if ($selectResult[0]['status'] == 2 || $selectResult[0]['status'] == 3)
+            return json(['status' => 0, 'msg' => 'task done change status fail']);
+        //任务已经完成 或 终止 不能完成修改
+        if ($selectResult[0]['status'] == 1 && $taskStatus == 1)
+            return json(['status' => 0, 'msg' => 'task status change fail']);
+        $updateTaskListData = [
+            'status' => $taskStatus
+        ];
+        if ($taskStatus == 2)
+            $updateTaskListData['endTime'] = getDateTime();
+        Db::name('task_list')->where([
+            'lid' => $lid,
+            'id'  => $taskID
+        ])->limit(1)->update($updateTaskListData);
+        //更新任务状态
+        if ($taskStatus == 2) {
+            $selectResult = Db::name('machine_list')->where([
+                'uuid' => ':uuid',
+                'lid'  => $lid
+            ])->bind([
+                'uuid' => $uuid
+            ])->limit(1)->field('taskList')->select();
+            if (!empty($selectResult)) {
+                $tempTaskList = unserialize($selectResult[0]['taskList']);
+                if (!empty($tempTaskList)) {
+                    $tempListData = [];
+                    foreach ($tempTaskList as $key => $value) {
+                        if ($value['id'] == $taskID)
+                            continue;
+                        $tempListData[] = $value;
+                    }
+                    $tempTaskList = serialize($tempListData);
+                    Db::name('machine_list')->where([
+                        'uuid' => ':uuid',
+                        'lid'  => $lid
+                    ])->bind([
+                        'uuid' => $uuid
+                    ])->limit(1)->update([
+                        'taskList' => $tempTaskList
+                    ]);
+                }
+            }
+        }
+        //删除已经完成的任务
+        return json(['status' => 1, 'msg' => 'task status change success']);
+    }
+
+
+    /**
+     * @param int $lid
+     * @param string $mac
+     * @param string $uuid
+     * @return bool
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    private function verifyMachineData(int $lid, string $mac, string $uuid)
+    {
+        if (empty($mac) || empty($lid) || empty($uuid))
+            return false;
+        $selectResult = Db::name('machine_list')->where([
+            'lid'  => $lid,
+            'uuid' => ':uuid'
+        ])->bind([
+            'uuid' => $uuid
+        ])->limit(1)->field('mac')->select();
+        if (empty($selectResult))
+            return false;
+        if ($selectResult[0]['mac'] != $mac)
+            return false;
+        return true;
+    }
+
+    /**
+     * @param int $taskID
+     * @param string $token
+     * @return bool
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    private function verifyTaskData(int $taskID, string $token)
+    {
+        if (empty($taskID) || empty($token))
+            return false;
+        if (strlen($token) != 64)
+            return false;
+        $selectTaskData = Db::name('task_list')->where('id', $taskID)->field('token')->limit(1)->select();
+        if (empty($selectTaskData))
+            return false;
+        if ($selectTaskData[0]['token'] != $token)
+            return false;
+        return true;
     }
 }

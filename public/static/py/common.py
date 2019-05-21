@@ -1,6 +1,7 @@
 import json
 import threading
 import time
+from urllib import request
 
 import threadpool
 
@@ -19,21 +20,23 @@ def banner():
         """)
 
 
-# print(load_module)
-
-def login_server(server_address, uid, hash):
+def login_server(server_gateway, uid, hash):
     banner()
 
     mac = tootls.get_mac_address()
 
-    login_result = tootls.curl(server_address + '/api/v1/Login', {
+    code, _, body, _, _ = tootls.curl2(server_gateway + '/api/v1/Login', {
         'mac': mac,
         'machineInfo': tootls.get_system_info(),
         'uid': uid,
         'hash': hash
-    }, {}, 'POST')
+    }, {}, 'post')
 
-    login_result = json.loads(login_result)
+    if code != 200:
+        print('[-] request server error')
+        exit(500)
+
+    login_result = json.loads(body)
     if login_result['status'] is 0:
         print('[+] ' + login_result['msg'])
         exit(500)
@@ -47,6 +50,20 @@ def login_server(server_address, uid, hash):
         'mac': mac,
         'uuid': login_result['uuid']
     }
+
+
+def quit_server(server_gateway, lid, mac, uuid):
+    code, _, body, _, _ = tootls.curl2(server_gateway + '/api/v1/Logout', {
+        'mac': mac,
+        'lid': lid,
+        'uuid': uuid
+    }, {}, 'post')
+
+    if code != 200:
+        print('[-] request server error, but logout success')
+        exit(500)
+
+    print('[-] logout success lid => ' + str(lid) + ' uuid => ' + uuid)
 
 
 def get_target_service(target, user_agent='', cookie=''):
@@ -108,7 +125,9 @@ class heart_beat_threading(threading.Thread):
     __mac = None
     __uuid = None
     __server_gateway = None
-    __service_fingerprint_dict = []
+
+    __run_task_list = []
+    __run_task_id_list = []
 
     def __init__(self, server_address, lid, uuid):
         threading.Thread.__init__(self)
@@ -117,64 +136,94 @@ class heart_beat_threading(threading.Thread):
         self.__mac = tootls.get_mac_address()
         self.__server_gateway = server_address
 
-    def run(self):
-        task_list = {}
-        machine_data = {
-            'runThread': 0,
-        }
-        # while True:
-        target = 'http://43.248.187.89:8000'
-        ua = 'DropScan v1.0.0'
-        cookie = 'none'
+    # 设置任务状态 0 运行待运行 1 运行中 2 运行完成 3 终止运行
+    def __set_task_status(self, task_id, status):
+        if status == 2 or status == 1:
+            request_url = self.__server_gateway + '/api/v1/TaskStatus'
+            code, _, _, _, _ = tootls.curl2(request_url, {
+                'lid': self.__lid,
+                'mac': self.__mac,
+                'uuid': self.__uuid,
+                'taskID': task_id,
+                'taskStatus': status
+            }, None, 'post')
+            if code != 200:
+                print('[-] set task status error')
+        if status == 2 or status == 3:
+            temp_list = []
+            for temp_data in self.__run_task_id_list:
+                if task_id == temp_data:
+                    continue
+                temp_list.append(task_id)
+            self.__run_task_id_list = temp_list
+            # 删除任务id列表
+            for temp_data in self.__run_task_list:
+                if temp_data['id'] == task_id:
+                    continue
+                temp_list.append(temp_data)
+            self.__run_task_list = temp_list
+            # 删除任务列表数据
 
-        # threader = scan_main_threading(
-        #     self.__server_gateway,
-        #     target,
-        #     1,
-        #     {
-        #         'token': 'hk585KIHvEwFtvRkvMN8uDsYgKeJIdev',
-        #         'tid': 2,
-        #         'nmap_scan_args': '-T4 -F'
-        #     },
-        #     ua, cookie)
-        # threader.start()
+    # 获取任务信息
+    def __get_task_info(self, task_id):
+        request_url = self.__server_gateway + '/api/v1/TaskInfo'
+        code, header, body, _, _ = tootls.curl2(request_url, {
+            'lid': self.__lid,
+            'mac': self.__mac,
+            'uuid': self.__uuid,
+            'taskID': task_id
+        })
+        if code != 200:
+            print('[-] get task info error')
+            exit(500)
+        try:
+            body = json.loads(body)
+        except:
+            print('[-] task info info error ,pls reload program')
+            exit(500)
+        if body['status'] != 1:
+            print('[-] task info get error,' + body['msg'])
+            exit(500)
+        return body['data']
+
+    def run(self):
         machine_status = 0
         while True:
+            if len(self.__run_task_id_list) == 0:
+                machine_status = 0
+            # 如果执行中的任务列表为空
             heart_beat_result = heart_beat_request(self.__server_gateway, self.__lid, self.__uuid, machine_status)
             if heart_beat_result['status'] != 1:
                 time.sleep(5)
                 continue
             # 当心跳数据异常
-            if heart_beat_result['remoteStatus'] == 1:
-                
-            print(heart_beat_result)
+            if len(heart_beat_result['taskList']) != 0:
+                for task_info in heart_beat_result['taskList']:
+                    if task_info['status'] == 0:
+                        if task_info['id'] in self.__run_task_id_list:
+                            pass
+                        # 如果线程在运行则不运行
+                        else:
+                            threader = scan_main_threading(self.__server_gateway, self.__get_task_info(task_info['id']))
+                            threader.set_task_status = self.__set_task_status
+                            threader.setDaemon(True)
+                            threader.start()
+                            self.__run_task_list.append({
+                                'id': task_info['id'],
+                                'thread': threader
+                            })
+                            # 设置任务运行状态
+                        # 不在运行列表就运行
+                    # 需要运行线程
+                    if task_info['status'] == 3:
+                        if task_info['id'] in self.__run_task_id_list:
+                            for task_data in self.__run_task_list:
+                                if task_data['id'] == task_info['id']:
+                                    task_data['thread'].is_stop = True
+                        else:
+                            pass
+                    # 停止线程
             time.sleep(2)
-        # machine_status = 0
-        # while True:
-        #     heart_beat_result = heart_beat_request(self.__server_gateway, self.__lid, self.__uuid, machine_status)
-
-        # threader.run()
-        # thread_id = generate_random_str(8)
-        # # create random id
-        # task_list[thread_id] = {
-        #     'target': 'http://127.0.0.1',
-        #     'proxy': '127.0.0.1:1080',
-        #     'isScanC': False,
-        #     'dnsList': '223.5.5.5,223.6.6.6',
-        #     'status': 0
-        # }
-        # pool = ThreadPool(poolsize)
-        # heart_beat_result = heart_beat_request(self.server_address, self.lid, machine_status)
-        # if heart_beat_result['status'] != 1:
-        #     time.sleep(5)
-        #     continue
-        # if heart_beat_result['remoteStatus'] == 1 and machine_status == 1:
-        #     task_info = json.loads(heart_beat_result['taskInfo'])
-        #     machine_status = 2
-        # if machine_status == 2 and work_threading.is_alive() is False:
-        #     machine_status = 1
-        #     print('[+] Waiting for the assignment......')
-        # 2 sec heart beat
 
 
 class scan_main_threading(threading.Thread):
@@ -183,38 +232,30 @@ class scan_main_threading(threading.Thread):
 
     __plugins_temp = []
     # __run_done_plugins_id = []
-    __user_agent = ''
-    __cookie = ''
     __targets_data = []
     __server_gateway = ''
     __scan_data = {}
 
-    # threader = scan_main_threading(self.__server_gateway, 'http://www.laruence.com/', 1, {
-    #     'lid': self.__lid,
-    #     'token': self.__mac,
-    #     'tid': 1
-    # }, 'none', 'DropScan v1.0.0')
-    def __init__(self, server_gateway, target_url, thread_num, scan_data, user_agent='',
-                 cookie='test'):
+    __task_id = 0
+
+    def __init__(self, server_gateway, task_info):
         threading.Thread.__init__(self)
 
-        self.is_suspend = False
+        # self.is_suspend = False
         self.is_stop = False
         # 这两个参数控制暂停与停止
-
-        self.user_agent = user_agent
-        self.__cookie = cookie
-        self.__targets_data.append({
-            'target_url': target_url
-        })
         self.__server_gateway = server_gateway
-        self.__scan_data = scan_data
+
+        self.__targets_data.append({
+            'target_url': task_info['target_url']
+        })
+        self.__scan_data = task_info
 
         # self.__run_done_plugins_id = []
         # 这个参数用来存储已经完成的插件ID 用于暂停后恢复线程 并且不会假死
         self.__load_plugins()
         # 加载插件列表
-        self.__pool = threadpool.ThreadPool(thread_num)
+        self.__pool = threadpool.ThreadPool(task_info['plugins_thread_num'])
         self.__requests = threadpool.makeRequests(callable_=self.__run_plugins, args_list=self.__plugins_temp,
                                                   callback=self.__check_status)
         # 这两行用来初始化线程池
@@ -242,8 +283,8 @@ class scan_main_threading(threading.Thread):
             })
 
     def __check_status(self, b, c):
-        if self.is_suspend == 1:
-            raise Exception('Scan Suspend ... Await Restart Scan')
+        # if self.is_suspend == 1:
+        #     raise Exception('Scan Suspend ... Await Restart Scan')
         if self.is_stop == 1:
             raise Exception('Scan Exit')
 
@@ -276,17 +317,30 @@ class scan_main_threading(threading.Thread):
             'target_url': target_url
         })
 
+    def curl2(self, url=None, request_data=None, headers=None, request_type=None, proxy=None, timeout=3):
+        if headers is None:
+            headers = {
+                'user-agent': self.__scan_data['userAgent'],
+                'cookie': self.__scan_data['cookie']
+            }
+        if proxy is None and self.__scan_data['proxy'] is not None:
+            if self.__scan_data['proxy']['type'] == 'http':
+                proxy = request.ProxyHandler(
+                    {'http': self.__scan_data['proxy']['ip'] + ':' + str(self.__scan_data['proxy']['port'])})
+        return tootls.curl2(url, request_data, headers, request_type, proxy, timeout)
+
     def __run_plugins(self, data):
         data['code'].plugin_id = data['id']
         data['code'].send_scan_result = self.send_scan_result
         data['code'].task_push = self.task_push
         data['code'].tootls = tootls
+        data['code'].tootls.curl2 = self.curl2
         try:
             if data['code'].assign(self.__targets_data[0]['service_list']):
                 data['code'].audit(
                     self.__targets_data[0]['target_url'],
-                    self.__user_agent,
-                    self.__cookie
+                    self.__scan_data['userAgent'],
+                    self.__scan_data['cookie']
                 )
         except:
             print('error')
@@ -324,10 +378,12 @@ class scan_main_threading(threading.Thread):
 
     def run(self):
         isEnd = False
+        self.set_task_status(self.__task_id, 1)
         print('[+] Start Scan Target !')
         while isEnd is False:
             self.__targets_data[0]['service_list'] = get_target_service(self.__targets_data[0]['target_url'],
-                                                                        self.__user_agent, self.__cookie)
+                                                                        self.__scan_data['userAgent'],
+                                                                        self.__scan_data['cookie'])
             # scan target service
             self.__nmap_scan_target()
             # nmap scan
@@ -337,8 +393,10 @@ class scan_main_threading(threading.Thread):
             try:
                 self.__pool.wait()
             except Exception as err:
+                self.set_task_status(self.__task_id, 3)
                 print('[-] ' + str(err))
             self.__targets_data.pop(0)
             if len(self.__targets_data) == 0:
                 isEnd = True
         print('[+] Scan Target Done !')
+        self.set_task_status(self.__task_id, 2)

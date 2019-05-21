@@ -50,6 +50,8 @@ def curl2(url=None, request_data=None, headers=None, request_type=None, proxy=No
         request_data = parse.urlencode(request_data, encoding='utf-8')
         if request_type == 'get':
             url += '?' + request_data
+    if headers is None:
+        headers = {}
     if request_type != 'get':
         if request_type == 'json':
             headers['Content-Type'] = 'application/json; charset=utf-8'
@@ -61,8 +63,6 @@ def curl2(url=None, request_data=None, headers=None, request_type=None, proxy=No
             headers['Content-Type'] = 'text/xml; charset=utf-8'
         headers['Content-Length'] = len(request_data)
     # 组合参数
-    if headers is None:
-        headers = {}
     proxy_handler = request.ProxyHandler({})
     if proxy is not None:
         proxy_handler = proxy

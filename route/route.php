@@ -17,6 +17,7 @@ Route::group('api', function () {
 });
 
 Route::rule('test', function () {
+    dump(serialize([2]));
 //    \think\Db::name('task_list')->insertGetId([
 //        'uid'        => 1,
 //        'token'      => getRandChar(32),

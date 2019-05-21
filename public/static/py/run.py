@@ -1,10 +1,12 @@
 import imp
 import sys
+import time
 import urllib.request
 
 if sys.version_info < (3, 6):
     print('[+] must use python < 3.6')
     exit(500)
+
 
 def load_module(model_name, url):
     u = urllib.request.urlopen(url)
@@ -42,4 +44,12 @@ USER_LID = login_result['lid']
 UUID = login_result['uuid']
 
 heart_beat_thread = common.heart_beat_threading(API_GATEWAY, USER_LID, UUID)
+heart_beat_thread.setDaemon(True)
 heart_beat_thread.start()
+
+try:
+    while True:
+        time.sleep(2)
+except KeyboardInterrupt:
+    common.quit_server(API_GATEWAY, USER_LID, login_result['mac'], UUID)
+    print('[-] program end')

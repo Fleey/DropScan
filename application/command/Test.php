@@ -17,8 +17,9 @@ class Test extends Command
     }
 
     protected function execute(Input $input, Output $output)
-    {
-        $this->clearOverdueMachine();
+    {;
+        dump(serialize(json_decode('[{"id":2,"status":0}]',true)));
+//        $this->clearOverdueMachine();
 //        $this->buildFingerprintService();
         // 指令输出
     }
