@@ -172,7 +172,7 @@ class ApiV1
         $selectTaskData = Db::name('task_list')->where('id', $taskID)->field('token,status')->limit(1)->select();
         if (empty($selectTaskData))
             return json(['status' => 0, 'msg' => 'task id fail or token fail']);
-        if ($selectTaskData[0]['status'])
+        if ($selectTaskData[0]['status'] == 2)
             return json(['status' => 0, 'msg' => 'task is done']);
         if ($selectTaskData[0]['token'] != $token)
             return json(['status' => 0, 'msg' => 'task id fail or token fail']);
@@ -213,9 +213,13 @@ class ApiV1
         $selectResult = Db::name('task_list')->where([
             'lid' => $lid,
             'id'  => $taskID
-        ])->limit(1)->field('scanData')->select();
+        ])->limit(1)->field('scanData,token')->select();
 
-        $selectResult = json_decode($selectResult[0]['scanData']);
+        $token = $selectResult[0]['token'];
+
+        $selectResult           = json_decode($selectResult[0]['scanData'], true);
+        $selectResult['taskID'] = $taskID;
+        $selectResult['token']  = $token;
 
         return json(['status' => 1, 'data' => $selectResult]);
     }

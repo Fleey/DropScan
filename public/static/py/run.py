@@ -49,7 +49,7 @@ heart_beat_thread.start()
 
 try:
     while True:
-        time.sleep(2)
+        time.sleep(1)
 except KeyboardInterrupt:
     common.quit_server(API_GATEWAY, USER_LID, login_result['mac'], UUID)
     print('[-] program end')

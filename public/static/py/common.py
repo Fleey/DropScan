@@ -140,7 +140,7 @@ class heart_beat_threading(threading.Thread):
     def __set_task_status(self, task_id, status):
         if status == 2 or status == 1:
             request_url = self.__server_gateway + '/api/v1/TaskStatus'
-            code, _, _, _, _ = tootls.curl2(request_url, {
+            code, _, body, _, _ = tootls.curl2(request_url, {
                 'lid': self.__lid,
                 'mac': self.__mac,
                 'uuid': self.__uuid,
@@ -187,10 +187,11 @@ class heart_beat_threading(threading.Thread):
         return body['data']
 
     def run(self):
-        machine_status = 0
         while True:
             if len(self.__run_task_id_list) == 0:
-                machine_status = 0
+                machine_status = 1
+            else:
+                machine_status = 2
             # 如果执行中的任务列表为空
             heart_beat_result = heart_beat_request(self.__server_gateway, self.__lid, self.__uuid, machine_status)
             if heart_beat_result['status'] != 1:
@@ -212,6 +213,7 @@ class heart_beat_threading(threading.Thread):
                                 'id': task_info['id'],
                                 'thread': threader
                             })
+                            self.__run_task_id_list.append(task_info['id'])
                             # 设置任务运行状态
                         # 不在运行列表就运行
                     # 需要运行线程
@@ -250,6 +252,7 @@ class scan_main_threading(threading.Thread):
             'target_url': task_info['target_url']
         })
         self.__scan_data = task_info
+        self.__task_id = task_info['taskID']
 
         # self.__run_done_plugins_id = []
         # 这个参数用来存储已经完成的插件ID 用于暂停后恢复线程 并且不会假死
@@ -294,7 +297,7 @@ class scan_main_threading(threading.Thread):
         request_path = self.__server_gateway + '/api/v1/TaskMessage'
         # build request path
         request_result = tootls.curl(request_path, {
-            'taskID': self.__scan_data['tid'],
+            'taskID': self.__scan_data['taskID'],
             'token': self.__scan_data['token'],
             'target': self.__targets_data[0]['target_url'],
             'title': title,
@@ -317,7 +320,7 @@ class scan_main_threading(threading.Thread):
             'target_url': target_url
         })
 
-    def curl2(self, url=None, request_data=None, headers=None, request_type=None, proxy=None, timeout=3):
+    def curl(self, url=None, request_data=None, headers=None, request_type=None, proxy=None, timeout=3):
         if headers is None:
             headers = {
                 'user-agent': self.__scan_data['userAgent'],
@@ -334,17 +337,23 @@ class scan_main_threading(threading.Thread):
         data['code'].send_scan_result = self.send_scan_result
         data['code'].task_push = self.task_push
         data['code'].tootls = tootls
-        data['code'].tootls.curl2 = self.curl2
-        try:
-            if data['code'].assign(self.__targets_data[0]['service_list']):
-                data['code'].audit(
-                    self.__targets_data[0]['target_url'],
-                    self.__scan_data['userAgent'],
-                    self.__scan_data['cookie']
-                )
-        except:
-            print('error')
-            pass
+        data['code'].curl = self.curl
+
+        if data['code'].assign(self.__targets_data[0]['service_list']):
+            data['code'].audit(
+                self.__targets_data[0]['target_url'],
+                self.__scan_data['userAgent'],
+                self.__scan_data['cookie']
+            )
+        # try:
+        #     if data['code'].assign(self.__targets_data[0]['service_list']):
+        #         data['code'].audit(
+        #             self.__targets_data[0]['target_url'],
+        #             self.__scan_data['userAgent'],
+        #             self.__scan_data['cookie']
+        #         )
+        # except:
+        #     pass
         # 这里写入服务名 进行判断是否需要下一步操作 避免不必要的扫描过程
 
         # 砍掉了暂停功能只留停止功能

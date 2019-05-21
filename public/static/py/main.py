@@ -22,23 +22,6 @@ import urllib.request
 # print(test.generate_random_str(6))
 # print(data)
 
-# from lxml import etree
-#
-# text='''
-# <div>
-#     <ul>
-#          <li class="item-0"><a href="link1.html">第一个</a></li>
-#          <li class="item-1"><a href="link2.html">second item</a></li>
-#          <li class="item-0"><a href="link5.html">a属性</a>
-#      </ul>
-#  </div>
-# '''
-# html=etree.HTML(text) #初始化生成一个XPath解析对象
-# result=etree.tostring(html,encoding='utf-8')   #解析对象输出代码
-# print(type(html))
-# print(type(result))
-# print(result.decode('utf-8'))
-
 if sys.version_info < (3, 6):
     print('[+] must use python < 3.6')
     exit(500)
@@ -85,27 +68,7 @@ heart_beat_thread.start()
 
 try:
     while True:
-        time.sleep(2)
+        time.sleep(1)
 except KeyboardInterrupt:
     common.quit_server(API_GATEWAY, USER_LID, login_result['mac'], UUID)
     print('[-] program end')
-
-# from lib import nmap
-#
-# nm = nmap.PortScanner()
-# nm.scan(hosts='43.248.187.89', arguments="-T4 -F")
-#
-# for host in nm.all_hosts():
-#     print('存在下列域名：')
-#     for domain in nm[host]['hostnames']:
-#         print("domain:" + domain['name'] + ' type:' + domain['type'])
-#
-#     print('域名开放下列端口：')
-#     for port in nm[host]['tcp']:
-#         port_info = nm[host]['tcp'][port]
-#         if port_info['state'] != 'closed':
-#             print('port:' + str(port) + ' name:' + port_info['name'] + '  ' + port_info['product'] + ' ' +
-#                   port_info['version'])
-
-# print(common.get_mac_address())
-# print(233)
