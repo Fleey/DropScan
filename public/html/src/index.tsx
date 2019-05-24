@@ -28,6 +28,8 @@ class RoutePage extends Component {
             return 'plugins';
         if (Common.startWith('/user', location))
             return 'user';
+        if(Common.startWith('/login',location) || Common.startWith('/register',location))
+            return '';
         if (Common.startWith('/', location))
             return 'index';
         return '';
@@ -57,7 +59,6 @@ class RoutePage extends Component {
                 </Switch>
                 <Footer style={{textAlign: 'center'}}>DorpScan ©{getNowYear()} Created by Fleey</Footer>
             </Layout>
-
         );
     }
 }
