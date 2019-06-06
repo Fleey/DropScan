@@ -10,6 +10,8 @@ import * as serviceWorker from './serviceWorker';
 
 import {Layout, Menu} from 'antd';
 import Common from './Common';
+import Login from "./view/Login";
+import Register from "./view/Register";
 
 const {Header, Footer} = Layout;
 
@@ -28,7 +30,7 @@ class RoutePage extends Component {
             return 'plugins';
         if (Common.startWith('/user', location))
             return 'user';
-        if(Common.startWith('/login',location) || Common.startWith('/register',location))
+        if (Common.startWith('/login', location) || Common.startWith('/register', location))
             return '';
         if (Common.startWith('/', location))
             return 'index';
@@ -55,6 +57,8 @@ class RoutePage extends Component {
                 <Switch>
                     <Route path="/" exact component={Index}/>
                     <Route path="/Task" component={TaskIndex}/>
+                    <Route path="/Login" component={Login}/>
+                    <Route path="/Register" component={Register}/>
                     <Route component={NotFound}/>
                 </Switch>
                 <Footer style={{textAlign: 'center'}}>DorpScan ©{getNowYear()} Created by Fleey</Footer>

@@ -5,7 +5,7 @@ import {Link} from "react-router-dom";
 
 import TaskList from "./TaskList";
 import MachineList from "./MachineList";
-import PrivatePlugins from "./PrivatePlugins";
+import Plugins from "./Plugins";
 import Common from "../../Common";
 
 const {Content, Sider} = Layout;
@@ -20,8 +20,8 @@ class Index extends Component {
             return '任务列表';
         if (Common.startWith('/task/machinelist', location))
             return '机器列表';
-        if (Common.startWith('/task/privateplugins', location))
-            return '私有插件';
+        if (Common.startWith('/task/plugins', location))
+            return '插件列表';
         if (Common.startWith('/', location))
             return '任务列表';
         return '';
@@ -34,8 +34,8 @@ class Index extends Component {
             return 'taskList';
         if (Common.startWith('/task/machinelist', location))
             return 'machineList';
-        if (Common.startWith('/task/privateplugins', location))
-            return 'privatePlugins';
+        if (Common.startWith('/task/plugins', location))
+            return 'Plugins';
         if (Common.startWith('/', location))
             return 'taskList';
         return '';
@@ -59,15 +59,15 @@ class Index extends Component {
                         >
                             <Menu.Item key="taskList"><Link to={"/Task/TaskList"}><Icon
                                 type="appstore"/>任务列表</Link></Menu.Item>
-                            <Menu.Item key="machineList"><Link to={"/Task/MachineList"}><Icon type="ordered-list"/>机器列表</Link></Menu.Item>
-                            <Menu.Item key="privatePlugins"><Link to={"/Task/PrivatePlugins"}><Icon type="database"/>私有插件</Link></Menu.Item>
+                            <Menu.Item key="machineList"><Link to={"/Task/MachineList"}><Icon type="cloud-server" />机器列表</Link></Menu.Item>
+                            <Menu.Item key="Plugins"><Link to={"/Task/Plugins"}><Icon type="database"/>插件列表</Link></Menu.Item>
                         </Menu>
                     </Sider>
                     <Content style={{padding: '0 24px', minHeight: 380}}>
                         <Switch>
                             <Route path="/Task/TaskList" component={TaskList}/>
                             <Route path="/Task/MachineList" component={MachineList}/>
-                            <Route path="/Task/PrivatePlugins" component={PrivatePlugins}/>
+                            <Route path="/Task/Plugins" component={Plugins}/>
                             <Route path="/Task/" component={TaskList}/>
                         </Switch>
                     </Content>

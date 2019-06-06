@@ -1,0 +1,18 @@
+#login-div .login-form {
+    max-width: 300px;
+    margin: 0 auto;
+    padding-top: 6rem;
+}
+#login-div .login-form .title{
+    font-size: 46px;
+    text-align: center;
+    font-weight: 400;
+    color: rgba(0, 0, 0, 0.65);
+}
+#login-div .login-form-forgot {
+    float: right;
+}
+
+#login-div .login-form-button {
+    width: 100%;
+}
