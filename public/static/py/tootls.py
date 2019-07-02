@@ -38,7 +38,7 @@ def curl(url, data, headers, type='GET'):
     return result
 
 
-def curl2(url=None, request_data=None, headers=None, request_type=None, proxy=None, timeout=3):
+def curl2(url=None, request_data=None, headers=None, request_type=None, proxy=None, timeout=3, method='POST'):
     if url is None:
         return [500, [], '', 500, 'url is empty']
     if request_type is None:
@@ -69,7 +69,7 @@ def curl2(url=None, request_data=None, headers=None, request_type=None, proxy=No
     # 设置代理头
     opener = request.build_opener(proxy_handler)
     if request_type != 'get':
-        response = request.Request(url, headers=headers, data=request_data.encode('utf-8'))
+        response = request.Request(url, headers=headers, data=request_data.encode('utf-8'), method=method)
     else:
         response = request.Request(url, headers=headers)
     temp_data = []

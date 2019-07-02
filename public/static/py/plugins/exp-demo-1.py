@@ -54,5 +54,5 @@ if __name__ == '__main__':
     def send_scan_result(title, body, level):
         print('[+][' + str(level) + ']' + '[' + title + ']' + body)
 
-
+    from tootls import curl2 as curl
     audit('http://43.248.187.89:8000', 'none', 'cookie')

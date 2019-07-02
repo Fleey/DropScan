@@ -8,6 +8,9 @@
 // +----------------------------------------------------------------------
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
+Route::rule('SignIn','user/Template/viewSignIn');
+Route::rule('SignUp','user/Template/viewSignUp');
+
 Route::get('run/:id/:hash', 'api/ApiV1/getRun')->pattern([
     'id'   => '[0-9]{1,6}',
     'hash' => '[a-zA-Z0-9]{64}']);
@@ -16,8 +19,12 @@ Route::group('api', function () {
     Route::controller('v1', 'api/ScanApiV1');
 });
 
+Route::group('auth', function () {
+    Route::controller('user', 'user/Auth');
+});
+
 Route::rule('test', function () {
-    dump(serialize([2]));
+   dump( \app\user\model\UserModel::getAttr(1,'loginToken'));
 //    \think\Db::name('task_list')->insertGetId([
 //        'uid'        => 1,
 //        'token'      => getRandChar(32),
